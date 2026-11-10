@@ -1,0 +1,35 @@
+name: gempa_cuaca
+version: "1.0.0"
+config-version: 2
+profile: gempa_cuaca
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Aset dianggap terpapar gempa jika episentrum berada dalam radius ini
+  paparan_radius_km: 100
+  # Gempa kecil tidak dihitung sebagai paparan
+  paparan_min_magnitudo: 4.0
+  # Curah hujan per slot 3 jam (mm) yang dianggap hujan lebat, selain kategori BMKG
+  # "Hujan Lebat"/"Hujan Petir". Asumsi project, bisa disesuaikan.
+  ambang_hujan_lebat_mm: 20
+  # Awal kalender dim_waktu (histori USGS dimulai Desember 2015)
+  tanggal_awal: "2015-12-01"
+
+seeds:
+  gempa_cuaca:
+    +schema: referensi
+
+models:
+  gempa_cuaca:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: gold
+      +materialized: table

@@ -1,0 +1,9 @@
+# Library tambahan di atas image apache/airflow:3.4.0.
+# requests dan psycopg (driver PostgreSQL) sudah termasuk di image Airflow.
+
+# Spark 4.0 (mendukung Python 3.13 dan Java 21). Juga dipakai untuk menjalankan
+# Spark master/worker di container terpisah, jadi versinya otomatis sama.
+pyspark==4.0.5
+
+# Membaca Parquet layer silver saat memuat ke PostgreSQL
+pyarrow==25.0.1

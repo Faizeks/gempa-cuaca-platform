@@ -1,0 +1,4 @@
+# Script shell harus tetap berakhir LF walau repo di-clone di Windows,
+# kalau tidak, container PostgreSQL gagal menjalankan script init.
+*.sh text eol=lf
+*.sql text eol=lf
