@@ -13,9 +13,9 @@ from conftest import FIXTURES, load_json
 
 pytest.importorskip("pyspark")
 
-from pipeline.extract import bmkg_gempa  # noqa: E402
-from pipeline.silver import cuaca, gempa, wilayah  # noqa: E402
-from pipeline.spark import spark_session  # noqa: E402
+from pipeline.extract import bmkg_gempa
+from pipeline.silver import cuaca, gempa, wilayah
+from pipeline.spark import spark_session
 
 KABKOTA_CSV = (
     "kode,nama,ibukota,lat,lng,elv,tz,luas_km2,penduduk,kode_provinsi,nama_provinsi\n"
@@ -46,16 +46,24 @@ def lake(tmp_path):
     put_json("autogempa", "2026-11-09", "010000.json", auto, "2026-11-09T01:00:05+00:00")  # kejadian yang sama
     dirasakan = {"Infogempa": {"gempa": [auto["Infogempa"]["gempa"]]}}
     put_json("gempadirasakan", "2026-11-09", "010000.json", dirasakan, "2026-11-09T01:00:06+00:00")
-    put_json("gempaterkini", "2026-11-09", "010000.json", load_json("bmkg_gempaterkini.json"), "2026-11-09T01:00:07+00:00")
+    put_json(
+        "gempaterkini", "2026-11-09", "010000.json", load_json("bmkg_gempaterkini.json"), "2026-11-09T01:00:07+00:00"
+    )
 
     csv_text = (FIXTURES / "usgs_events.csv").read_text(encoding="utf-8")
     backfill = bronze / "usgs" / "mode=backfill" / "month=2026-11" / "events.csv"
     backfill.parent.mkdir(parents=True)
     backfill.write_text(csv_text)
     # Versi revisi us7000test2 di run incremental (updated lebih baru, magnitudo berubah)
-    revised = csv_text.splitlines()[0] + "\n" + csv_text.splitlines()[2].replace(
-        ",4.4,mb,", ",4.6,mww,"
-    ).replace("2026-11-01T20:15:30.000Z", "2026-11-03T08:00:00.000Z").replace("automatic", "reviewed") + "\n"
+    revised = (
+        csv_text.splitlines()[0]
+        + "\n"
+        + csv_text.splitlines()[2]
+        .replace(",4.4,mb,", ",4.6,mww,")
+        .replace("2026-11-01T20:15:30.000Z", "2026-11-03T08:00:00.000Z")
+        .replace("automatic", "reviewed")
+        + "\n"
+    )
     incremental = bronze / "usgs" / "mode=incremental" / "date=2026-11-04" / "events.csv"
     incremental.parent.mkdir(parents=True)
     incremental.write_text(revised)
@@ -110,7 +118,8 @@ def test_nearest_kabkota_and_full_silver_gempa(spark, lake):
 
 
 def test_kabkota_types_and_jenis(spark, lake):
-    rows = {r["kode_kabkota"]: r for r in wilayah.kabkota(wilayah.read_reference(spark, lake / "kabkota.csv")).collect()}
+    df = wilayah.kabkota(wilayah.read_reference(spark, lake / "kabkota.csv"))
+    rows = {r["kode_kabkota"]: r for r in df.collect()}
     assert rows["71.73"]["jenis"] == "kota"
     assert rows["82.01"]["jenis"] == "kabupaten"
     assert rows["31.71"]["penduduk"] == 1050000

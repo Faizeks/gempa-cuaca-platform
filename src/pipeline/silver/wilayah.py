@@ -8,8 +8,17 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
 SILVER_COLUMNS = [
-    "kode_kabkota", "nama_kabkota", "jenis", "ibukota", "kode_provinsi", "nama_provinsi",
-    "lat", "lon", "elevasi_m", "luas_km2", "penduduk",
+    "kode_kabkota",
+    "nama_kabkota",
+    "jenis",
+    "ibukota",
+    "kode_provinsi",
+    "nama_provinsi",
+    "lat",
+    "lon",
+    "elevasi_m",
+    "luas_km2",
+    "penduduk",
 ]
 
 

@@ -63,9 +63,27 @@ BRONZE_RECORD = T.StructType(
 )
 
 SILVER_COLUMNS = [
-    "adm4", "kode_kabkota", "desa", "lat", "lon", "analisis_utc", "waktu_utc", "tanggal_lokal",
-    "jam_lokal", "suhu_c", "kelembapan_pct", "curah_hujan_mm", "tutupan_awan_pct", "kec_angin_kmj",
-    "arah_angin_deg", "arah_angin", "jarak_pandang_m", "kode_cuaca", "cuaca", "cuaca_en", "diekstrak_utc",
+    "adm4",
+    "kode_kabkota",
+    "desa",
+    "lat",
+    "lon",
+    "analisis_utc",
+    "waktu_utc",
+    "tanggal_lokal",
+    "jam_lokal",
+    "suhu_c",
+    "kelembapan_pct",
+    "curah_hujan_mm",
+    "tutupan_awan_pct",
+    "kec_angin_kmj",
+    "arah_angin_deg",
+    "arah_angin",
+    "jarak_pandang_m",
+    "kode_cuaca",
+    "cuaca",
+    "cuaca_en",
+    "diekstrak_utc",
 ]
 
 

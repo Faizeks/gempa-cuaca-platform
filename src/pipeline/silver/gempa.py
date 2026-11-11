@@ -20,23 +20,66 @@ NUMBER_PATTERN = r"(-?\d+(?:[.,]\d+)?)"
 
 # Kolom satu kejadian di feed BMKG (semua teks; feed yang tidak punya kolom tertentu -> null)
 BMKG_EVENT_FIELDS = [
-    "Tanggal", "Jam", "DateTime", "Coordinates", "Lintang", "Bujur",
-    "Magnitude", "Kedalaman", "Wilayah", "Potensi", "Dirasakan", "Shakemap",
+    "Tanggal",
+    "Jam",
+    "DateTime",
+    "Coordinates",
+    "Lintang",
+    "Bujur",
+    "Magnitude",
+    "Kedalaman",
+    "Wilayah",
+    "Potensi",
+    "Dirasakan",
+    "Shakemap",
 ]
 BMKG_EVENT = T.StructType([T.StructField(f, T.StringType()) for f in BMKG_EVENT_FIELDS])
 
 USGS_COLUMNS = [
-    "time", "latitude", "longitude", "depth", "mag", "magType", "nst", "gap", "dmin", "rms", "net", "id",
-    "updated", "place", "type", "horizontalError", "depthError", "magError", "magNst", "status",
-    "locationSource", "magSource",
+    "time",
+    "latitude",
+    "longitude",
+    "depth",
+    "mag",
+    "magType",
+    "nst",
+    "gap",
+    "dmin",
+    "rms",
+    "net",
+    "id",
+    "updated",
+    "place",
+    "type",
+    "horizontalError",
+    "depthError",
+    "magError",
+    "magNst",
+    "status",
+    "locationSource",
+    "magSource",
 ]
 USGS_SCHEMA = T.StructType([T.StructField(c, T.StringType()) for c in USGS_COLUMNS])
 
 # Skema akhir silver gempa (urutan kolom = urutan tabel warehouse)
 SILVER_COLUMNS = [
-    "sumber", "sumber_event_id", "waktu_utc", "lat", "lon", "kedalaman_km", "magnitudo",
-    "tipe_magnitudo", "keterangan_lokasi", "potensi", "dirasakan", "status_review",
-    "diperbarui_utc", "feed_bmkg", "kode_kabkota", "jarak_kabkota_km", "diekstrak_utc",
+    "sumber",
+    "sumber_event_id",
+    "waktu_utc",
+    "lat",
+    "lon",
+    "kedalaman_km",
+    "magnitudo",
+    "tipe_magnitudo",
+    "keterangan_lokasi",
+    "potensi",
+    "dirasakan",
+    "status_review",
+    "diperbarui_utc",
+    "feed_bmkg",
+    "kode_kabkota",
+    "jarak_kabkota_km",
+    "diekstrak_utc",
 ]
 
 
@@ -114,33 +157,37 @@ def bmkg_events(raw: DataFrame) -> DataFrame:
     )
     # Gabungkan semua kemunculan: ambil nilai non-null (mis. 'dirasakan' hanya ada di
     # sebagian feed) dan catat feed mana saja yang memuat kejadian ini
-    return cleaned.groupBy("sumber_event_id").agg(
-        F.first("waktu_utc", ignorenulls=True).alias("waktu_utc"),
-        F.first("lat", ignorenulls=True).alias("lat"),
-        F.first("lon", ignorenulls=True).alias("lon"),
-        F.first("kedalaman_km", ignorenulls=True).alias("kedalaman_km"),
-        F.first("magnitudo", ignorenulls=True).alias("magnitudo"),
-        F.first("keterangan_lokasi", ignorenulls=True).alias("keterangan_lokasi"),
-        F.first("potensi", ignorenulls=True).alias("potensi"),
-        F.first("dirasakan", ignorenulls=True).alias("dirasakan"),
-        F.array_join(F.sort_array(F.collect_set("feed")), ",").alias("feed_bmkg"),
-        F.max("diekstrak_utc").alias("diekstrak_utc"),
-    ).select(
-        F.lit("bmkg").alias("sumber"),
-        "sumber_event_id",
-        "waktu_utc",
-        "lat",
-        "lon",
-        "kedalaman_km",
-        "magnitudo",
-        F.lit(None).cast("string").alias("tipe_magnitudo"),
-        "keterangan_lokasi",
-        "potensi",
-        "dirasakan",
-        F.lit(None).cast("string").alias("status_review"),
-        F.col("diekstrak_utc").alias("diperbarui_utc"),
-        "feed_bmkg",
-        "diekstrak_utc",
+    return (
+        cleaned.groupBy("sumber_event_id")
+        .agg(
+            F.first("waktu_utc", ignorenulls=True).alias("waktu_utc"),
+            F.first("lat", ignorenulls=True).alias("lat"),
+            F.first("lon", ignorenulls=True).alias("lon"),
+            F.first("kedalaman_km", ignorenulls=True).alias("kedalaman_km"),
+            F.first("magnitudo", ignorenulls=True).alias("magnitudo"),
+            F.first("keterangan_lokasi", ignorenulls=True).alias("keterangan_lokasi"),
+            F.first("potensi", ignorenulls=True).alias("potensi"),
+            F.first("dirasakan", ignorenulls=True).alias("dirasakan"),
+            F.array_join(F.sort_array(F.collect_set("feed")), ",").alias("feed_bmkg"),
+            F.max("diekstrak_utc").alias("diekstrak_utc"),
+        )
+        .select(
+            F.lit("bmkg").alias("sumber"),
+            "sumber_event_id",
+            "waktu_utc",
+            "lat",
+            "lon",
+            "kedalaman_km",
+            "magnitudo",
+            F.lit(None).cast("string").alias("tipe_magnitudo"),
+            "keterangan_lokasi",
+            "potensi",
+            "dirasakan",
+            F.lit(None).cast("string").alias("status_review"),
+            F.col("diekstrak_utc").alias("diperbarui_utc"),
+            "feed_bmkg",
+            "diekstrak_utc",
+        )
     )
 
 

@@ -44,9 +44,7 @@ def bmkg_cuaca_dag():
     @task
     def load_locations() -> list[str]:
         if not config.LOKASI_CUACA_CSV.exists():
-            raise FileNotFoundError(
-                f"{config.LOKASI_CUACA_CSV} belum ada. Jalankan DAG 'ref_wilayah' terlebih dahulu."
-            )
+            raise FileNotFoundError(f"{config.LOKASI_CUACA_CSV} belum ada. Jalankan DAG 'ref_wilayah' terlebih dahulu.")
         codes = [row["adm4"] for row in storage.read_csv(config.LOKASI_CUACA_CSV)]
         if config.BMKG_CUACA_MAX_LOCATIONS:
             codes = codes[: config.BMKG_CUACA_MAX_LOCATIONS]

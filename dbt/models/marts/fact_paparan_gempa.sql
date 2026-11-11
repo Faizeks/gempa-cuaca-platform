@@ -7,11 +7,14 @@
     )
 }}
 
--- Grain: satu aset x satu gempa yang episentrumnya dalam radius paparan.
--- Bounding box (+-1 derajat, kira-kira 111 km) menyaring kandidat dulu agar perhitungan
--- jarak Haversine tidak dilakukan untuk setiap pasangan aset-gempa.
+-- Grain: satu aset x satu gempa yang episentrumnya berada dalam radius dampak gempa itu.
+-- Radius dampak bergantung magnitudo (macro radius_dampak_km). Bounding box seluas radius
+-- (1 derajat ~ 111 km; dibagi 105 agar aman untuk lintang Indonesia) menyaring kandidat dulu,
+-- sehingga jarak Haversine tidak dihitung untuk setiap pasangan aset-gempa.
 with gempa as (
-    select sumber, sumber_event_id, waktu_utc, tanggal_wib, lat, lon, magnitudo, kedalaman_km, kategori_magnitudo
+    select
+        sumber, sumber_event_id, waktu_utc, tanggal_wib, lat, lon, magnitudo, kedalaman_km, kategori_magnitudo,
+        {{ radius_dampak_km('magnitudo') }} as radius_dampak_km
     from {{ ref('fact_gempa') }}
     where lat is not null
       and lon is not null
@@ -33,11 +36,12 @@ kandidat as (
         g.magnitudo,
         g.kedalaman_km,
         g.kategori_magnitudo,
+        g.radius_dampak_km,
         {{ haversine_km('a.lat', 'a.lon', 'g.lat', 'g.lon') }} as jarak_km
     from {{ ref('dim_aset') }} a
     join gempa g
-      on g.lat between a.lat - 1 and a.lat + 1
-     and g.lon between a.lon - 1 and a.lon + 1
+      on g.lat between a.lat - g.radius_dampak_km / 105 and a.lat + g.radius_dampak_km / 105
+     and g.lon between a.lon - g.radius_dampak_km / 105 and a.lon + g.radius_dampak_km / 105
 )
 
 select
@@ -54,6 +58,8 @@ select
     magnitudo,
     kedalaman_km,
     kategori_magnitudo,
+    -- Presisi sama dengan jarak_km: pembulatan monoton menjaga jarak_km <= radius_dampak_km
+    round(radius_dampak_km::numeric, 2) as radius_dampak_km,
     round(jarak_km::numeric, 2) as jarak_km
 from kandidat
-where jarak_km <= {{ var('paparan_radius_km') }}
+where jarak_km <= radius_dampak_km

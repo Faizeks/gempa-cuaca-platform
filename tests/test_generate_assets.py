@@ -8,10 +8,24 @@ generate_assets = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(generate_assets)
 
 KABKOTA = [
-    {"kode": "31.71", "nama": "Kota Jakarta Pusat", "kode_provinsi": "31", "nama_provinsi": "DKI Jakarta",
-     "lat": "-6.18", "lng": "106.83", "penduduk": "1000000"},
-    {"kode": "11.01", "nama": "Kabupaten Aceh Selatan", "kode_provinsi": "11", "nama_provinsi": "Aceh",
-     "lat": "3.25", "lng": "97.17", "penduduk": "10000"},
+    {
+        "kode": "31.71",
+        "nama": "Kota Jakarta Pusat",
+        "kode_provinsi": "31",
+        "nama_provinsi": "DKI Jakarta",
+        "lat": "-6.18",
+        "lng": "106.83",
+        "penduduk": "1000000",
+    },
+    {
+        "kode": "11.01",
+        "nama": "Kabupaten Aceh Selatan",
+        "kode_provinsi": "11",
+        "nama_provinsi": "Aceh",
+        "lat": "3.25",
+        "lng": "97.17",
+        "penduduk": "10000",
+    },
 ]
 
 

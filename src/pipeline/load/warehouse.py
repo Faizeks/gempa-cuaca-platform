@@ -65,7 +65,7 @@ def replace_table(conn: psycopg.Connection, target: SilverTable, silver_dir: Pat
         with cur.copy(sql.SQL("COPY {} ({}) FROM STDIN").format(table, cols)) as copy:
             for batch in data.to_batches(max_chunksize=10_000):
                 columns = [batch.column(c).to_pylist() for c in target.columns]
-                for row in zip(*columns):
+                for row in zip(*columns, strict=True):
                     copy.write_row(row)
     log.info("%s.%s: %d baris dimuat", target.schema, target.table, data.num_rows)
     return data.num_rows

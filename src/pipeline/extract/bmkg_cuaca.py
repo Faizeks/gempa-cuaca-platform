@@ -11,7 +11,7 @@ import logging
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 
@@ -91,7 +91,7 @@ def fetch_many(
         result.records.append(
             {
                 "adm4": adm4,
-                "extracted_at": datetime.now(timezone.utc).isoformat(),
+                "extracted_at": datetime.now(UTC).isoformat(),
                 "payload": payload,
             }
         )

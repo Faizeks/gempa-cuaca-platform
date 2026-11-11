@@ -1,0 +1,20 @@
+version: 2
+
+seeds:
+  - name: aset
+    description: >
+      Aset sintetis (gudang logistik dan objek polis asuransi) yang dibuat oleh
+      scripts/generate_assets.py. Data fiktif, mewakili data internal perusahaan.
+    config:
+      # Kode wilayah seperti "11.01" harus dibaca sebagai teks, bukan angka desimal
+      column_types:
+        aset_id: varchar(20)
+        jenis: varchar(20)
+        kategori: varchar(30)
+        kode_provinsi: varchar(2)
+        nama_provinsi: varchar(100)
+        kode_kabkota: varchar(5)
+        nama_kabkota: varchar(100)
+        lat: double precision
+        lon: double precision
+        nilai_rp: bigint

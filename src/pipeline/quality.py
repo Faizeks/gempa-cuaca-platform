@@ -42,10 +42,13 @@ SILVER_CHECKS = [
         "SELECT count(*) FROM silver.gempa WHERE waktu_utc > now() + interval '1 hour'",
     ),
     Check(
-        "cuaca: lebih dari 24 slot per lokasi per analisis",
-        """SELECT count(*) FROM (
-               SELECT 1 FROM silver.prakiraan_cuaca GROUP BY adm4, analisis_utc HAVING count(*) > 24
-           ) t""",
+        # Satu analisis BMKG (analysis_date) dipakai beberapa kali ekstraksi dengan jendela 3 hari yang
+        # bergeser sesuai jam ekstraksi, jadi jumlah slot per analisis bisa lebih dari 24 (3 hari x 8).
+        # Yang dicek: setiap slot berada dalam horizon wajar setelah waktu analisis.
+        "cuaca: slot prakiraan di luar horizon 5 hari setelah analisis",
+        """SELECT count(*) FROM silver.prakiraan_cuaca
+           WHERE waktu_utc < analisis_utc - interval '12 hours'
+              OR waktu_utc > analisis_utc + interval '5 days'""",
     ),
     Check(
         "cuaca: kode kab/kota tidak ada di referensi",

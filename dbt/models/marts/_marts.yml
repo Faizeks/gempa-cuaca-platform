@@ -95,8 +95,9 @@ models:
 
   - name: fact_paparan_gempa
     description: >
-      Satu baris per aset x gempa (M >= var paparan_min_magnitudo) yang episentrumnya dalam
-      radius var paparan_radius_km dari aset.
+      Satu baris per aset x gempa (M >= var paparan_min_magnitudo) yang episentrumnya berada
+      dalam radius dampak gempa tersebut. Radius dampak bergantung magnitudo:
+      radius_dampak_m5_km x 10^(faktor_radius_per_magnitudo x (M - 5)), default M5 25 km, M6 63 km, M7 158 km.
     data_tests:
       - unique_combination_of_columns:
           arguments:
@@ -108,8 +109,10 @@ models:
               arguments:
                 to: ref('dim_aset')
                 field: aset_id
+      - name: radius_dampak_km
+        description: Radius dampak gempa ini (km), dihitung dari magnitudo.
       - name: jarak_km
-        description: Jarak aset ke episentrum (Haversine).
+        description: Jarak aset ke episentrum (Haversine), selalu <= radius_dampak_km.
 
   - name: fact_paparan_cuaca
     description: Satu baris per aset x tanggal prakiraan x waktu analisis BMKG.
@@ -127,7 +130,7 @@ models:
             combination_of_columns: [kode_provinsi, bulan]
 
   - name: mart_paparan_aset
-    description: Ringkasan bulanan paparan gempa terhadap portofolio aset per provinsi dan jenis aset.
+    description: Ringkasan bulanan paparan gempa (dalam radius dampak) terhadap portofolio aset per provinsi dan jenis aset.
     data_tests:
       - unique_combination_of_columns:
           arguments:

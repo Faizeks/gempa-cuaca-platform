@@ -1,0 +1,12 @@
+# Linter dan formatter Python: ruff check . && ruff format --check .
+line-length = 120
+target-version = "py313"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "RUF"]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # karakter Unicode (×, –) wajar di teks berbahasa Indonesia
+]
+
+[lint.isort]
+known-first-party = ["pipeline"]

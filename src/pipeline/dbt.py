@@ -25,8 +25,10 @@ def dbt_command(args: Sequence[str], project_dir: str | None = None) -> list[str
         config.DBT_BIN,
         *args,
         "--no-use-colors",  # log Airflow tanpa kode warna ANSI
-        "--project-dir", project_dir,
-        "--profiles-dir", project_dir,
+        "--project-dir",
+        project_dir,
+        "--profiles-dir",
+        project_dir,
     ]
 
 

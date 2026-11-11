@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("airflow")
-from airflow.models import DagBag  # noqa: E402
+from airflow.models import DagBag
 
 DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
 EXPECTED_DAGS = {"ref_wilayah", "bmkg_gempa", "bmkg_cuaca", "usgs_backfill", "usgs_incremental", "silver", "gold"}

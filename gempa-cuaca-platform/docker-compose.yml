@@ -1,0 +1,248 @@
+# Platform Data Risiko Bencana: Gempa & Cuaca
+#
+# Layanan inti (selalu jalan):
+#   postgres                -> metadata Airflow + database "warehouse"
+#   airflow-apiserver       -> UI Airflow di http://localhost:8080
+#   airflow-scheduler       -> menjadwalkan dan menjalankan task (LocalExecutor)
+#   airflow-dag-processor   -> membaca file DAG
+#   spark-master            -> Spark standalone master, UI di http://localhost:8081
+#   spark-worker            -> 1 worker (2 core, 2 GB)
+#
+# Spark memakai image yang sama dengan Airflow (PySpark terpasang di dalamnya), sehingga
+# versi Python/Spark/Java driver dan worker identik. Task Airflow berperan sebagai driver.
+#
+# Layanan opsional (pakai profile agar laptop tidak berat):
+#   docker compose --profile bi up -d        -> Metabase di http://localhost:3000, dashboard dibuat otomatis
+#
+# Data lake berupa folder lokal ./data (bronze, reference, silver), di-mount ke semua
+# container pada path yang sama (/opt/airflow/data) agar driver dan worker Spark melihat file yang sama.
+# Berdasarkan docker-compose resmi Airflow 3.4.0, disederhanakan: LocalExecutor
+# (tanpa Redis/Celery worker) dan tanpa triggerer.
+
+x-airflow-common: &airflow-common
+  build:
+    context: ./docker/airflow
+  image: gempa-cuaca-airflow:3.4.0
+  env_file:
+    - .env
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://airflow:${AIRFLOW_DB_PASSWORD:-airflow}@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:-}
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Jakarta
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:-ganti_dengan_string_acak}
+    AIRFLOW__API_AUTH__JWT_ISSUER: airflow
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW_CONFIG: /opt/airflow/config/airflow.cfg
+    # Kode pipeline (src/pipeline) bisa di-import dari DAG
+    PYTHONPATH: /opt/airflow/src
+    DATA_LAKE_DIR: /opt/airflow/data
+    # Spark: ganti ke "local[2]" untuk menjalankan Spark di dalam container Airflow saja
+    SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+    # Database warehouse (layer silver dan gold)
+    WAREHOUSE_HOST: postgres
+    WAREHOUSE_PORT: "5432"
+    WAREHOUSE_DB: warehouse
+    # dbt (layer gold), terpasang di virtualenv terpisah di dalam image
+    DBT_BIN: /home/airflow/dbt-venv/bin/dbt
+    DBT_PROJECT_DIR: /opt/airflow/dbt
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./src:/opt/airflow/src
+    - ./data:/opt/airflow/data
+    - ./logs:/opt/airflow/logs
+    - ./config:/opt/airflow/config
+    - ./plugins:/opt/airflow/plugins
+    - ./tests:/opt/airflow/tests
+    - ./sql:/opt/airflow/sql
+    - ./dbt:/opt/airflow/dbt
+    - ./scripts:/opt/airflow/scripts
+    - ./metabase:/opt/airflow/metabase
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
+      POSTGRES_DB: airflow
+      WAREHOUSE_DB: warehouse
+      WAREHOUSE_USER: ${WAREHOUSE_USER:-warehouse}
+      WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD:-warehouse}
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+      # Dijalankan sekali saat volume masih kosong: membuat database "warehouse"
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # 5433 di laptop agar tidak bentrok dengan PostgreSQL lokal (jika ada)
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    # Task (LocalExecutor) berjalan di container ini, jadi driver Spark juga di sini.
+    # Executor di worker menghubungi driver lewat nama host ini.
+    hostname: airflow-scheduler
+    environment:
+      <<: *airflow-common-env
+      SPARK_DRIVER_HOST: airflow-scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/{logs,dags,plugins,config,data}
+        /entrypoint airflow version
+        /entrypoint airflow config list > /dev/null
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/{logs,dags,plugins,config,data}
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+    user: "0:0"
+
+  spark-master:
+    # Image yang sama dengan Airflow; build di sini agar tidak dicari di Docker Hub
+    build:
+      context: ./docker/airflow
+    image: gempa-cuaca-airflow:3.4.0
+    hostname: spark-master
+    entrypoint: ["spark-class", "org.apache.spark.deploy.master.Master"]
+    command: ["--host", "spark-master", "--port", "7077", "--webui-port", "8080"]
+    user: "${AIRFLOW_UID:-50000}:0"
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    volumes:
+      - ./data:/opt/airflow/data
+    ports:
+      - "8081:8080"   # UI Spark master
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: always
+
+  spark-worker:
+    # Image yang sama dengan Airflow; build di sini agar tidak dicari di Docker Hub
+    build:
+      context: ./docker/airflow
+    image: gempa-cuaca-airflow:3.4.0
+    hostname: spark-worker
+    entrypoint: ["spark-class", "org.apache.spark.deploy.worker.Worker"]
+    command:
+      ["spark://spark-master:7077", "--host", "spark-worker", "--cores", "2", "--memory", "2g", "--webui-port", "8080"]
+    user: "${AIRFLOW_UID:-50000}:0"
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    volumes:
+      - ./data:/opt/airflow/data
+    restart: always
+    depends_on:
+      spark-master:
+        condition: service_healthy
+
+  metabase:
+    # Patok versi agar build bisa diulang. Jika tag ini gagal di-pull, isi METABASE_VERSION=latest di .env
+    image: metabase/metabase:${METABASE_VERSION:-v0.64.5.6}
+    profiles: ["bi"]
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: airflow
+      MB_DB_PASS: ${AIRFLOW_DB_PASSWORD:-airflow}
+      MB_DB_HOST: postgres
+      JAVA_OPTS: "-Xmx1g"
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail -s http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  # Sekali jalan: membuat admin, koneksi warehouse, dan dashboard Metabase dari kode
+  # (scripts/setup_metabase.py, query di metabase/sql/). Aman dijalankan ulang.
+  metabase-setup:
+    <<: *airflow-common
+    profiles: ["bi"]
+    entrypoint: ["python", "/opt/airflow/scripts/setup_metabase.py"]
+    command: []
+    environment:
+      <<: *airflow-common-env
+      METABASE_URL: http://metabase:3000
+    depends_on:
+      metabase:
+        condition: service_started
+    restart: "no"
+
+volumes:
+  postgres-db-volume:

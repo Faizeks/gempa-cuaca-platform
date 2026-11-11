@@ -12,7 +12,7 @@
 # versi Python/Spark/Java driver dan worker identik. Task Airflow berperan sebagai driver.
 #
 # Layanan opsional (pakai profile agar laptop tidak berat):
-#   docker compose --profile bi up -d        -> Metabase di http://localhost:3000
+#   docker compose --profile bi up -d        -> Metabase di http://localhost:3000, dashboard dibuat otomatis
 #
 # Data lake berupa folder lokal ./data (bronze, reference, silver), di-mount ke semua
 # container pada path yang sama (/opt/airflow/data) agar driver dan worker Spark melihat file yang sama.
@@ -60,6 +60,8 @@ x-airflow-common: &airflow-common
     - ./tests:/opt/airflow/tests
     - ./sql:/opt/airflow/sql
     - ./dbt:/opt/airflow/dbt
+    - ./scripts:/opt/airflow/scripts
+    - ./metabase:/opt/airflow/metabase
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on: &airflow-common-depends-on
     postgres:
@@ -203,7 +205,8 @@ services:
         condition: service_healthy
 
   metabase:
-    image: metabase/metabase:latest # setelah pull pertama, patok ke versi spesifik
+    # Patok versi agar build bisa diulang. Jika tag ini gagal di-pull, isi METABASE_VERSION=latest di .env
+    image: metabase/metabase:${METABASE_VERSION:-v0.64.5.6}
     profiles: ["bi"]
     environment:
       MB_DB_TYPE: postgres
@@ -212,12 +215,34 @@ services:
       MB_DB_USER: airflow
       MB_DB_PASS: ${AIRFLOW_DB_PASSWORD:-airflow}
       MB_DB_HOST: postgres
+      JAVA_OPTS: "-Xmx1g"
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail -s http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
     depends_on:
       postgres:
         condition: service_healthy
     restart: always
+
+  # Sekali jalan: membuat admin, koneksi warehouse, dan dashboard Metabase dari kode
+  # (scripts/setup_metabase.py, query di metabase/sql/). Aman dijalankan ulang.
+  metabase-setup:
+    <<: *airflow-common
+    profiles: ["bi"]
+    entrypoint: ["python", "/opt/airflow/scripts/setup_metabase.py"]
+    command: []
+    environment:
+      <<: *airflow-common-env
+      METABASE_URL: http://metabase:3000
+    depends_on:
+      metabase:
+        condition: service_started
+    restart: "no"
 
 volumes:
   postgres-db-volume:

@@ -1,0 +1,14 @@
+# Koneksi dbt ke warehouse. Semua nilai dibaca dari environment variable
+# (diisi docker-compose dari .env), jadi tidak ada password di file ini.
+gempa_cuaca:
+  target: warehouse
+  outputs:
+    warehouse:
+      type: postgres
+      host: "{{ env_var('WAREHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('WAREHOUSE_PORT', '5433') | as_number }}"
+      dbname: "{{ env_var('WAREHOUSE_DB', 'warehouse') }}"
+      user: "{{ env_var('WAREHOUSE_USER', 'warehouse') }}"
+      password: "{{ env_var('WAREHOUSE_PASSWORD', 'warehouse') }}"
+      schema: gold
+      threads: 4

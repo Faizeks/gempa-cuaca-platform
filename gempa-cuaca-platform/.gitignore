@@ -1,0 +1,30 @@
+# Rahasia
+.env
+
+# Data lake lokal (hasil pipeline, bisa dibuat ulang)
+data/*
+!data/.gitkeep
+
+# Airflow runtime
+logs/
+config/airflow.cfg
+*.pid
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+dbt/.user.yml

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 
@@ -26,8 +26,8 @@ class UsgsQueryTooLarge(RuntimeError):
 def _as_utc(value: datetime) -> datetime:
     """Samakan ke UTC; waktu tanpa zona dianggap sudah UTC (konvensi USGS)."""
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _iso(value: datetime) -> str:

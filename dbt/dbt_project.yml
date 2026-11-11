@@ -10,11 +10,17 @@ macro-paths: ["macros"]
 target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
+flags:
+  send_anonymous_usage_stats: false
+
 vars:
-  # Aset dianggap terpapar gempa jika episentrum berada dalam radius ini
-  paparan_radius_km: 100
-  # Gempa kecil tidak dihitung sebagai paparan
-  paparan_min_magnitudo: 4.0
+  # Paparan gempa: aset terpapar jika berada dalam radius dampak gempa M >= paparan_min_magnitudo.
+  # Radius dampak membesar 10^0.4 (~2,5x) per kenaikan 1 magnitudo:
+  #   radius = radius_dampak_m5_km * 10^(0.4 * (M - 5))  ->  M5: 25 km, M6: 63 km, M7: 158 km
+  # Penyederhanaan atenuasi guncangan untuk keperluan project, bukan model rekayasa gempa.
+  paparan_min_magnitudo: 5.0
+  radius_dampak_m5_km: 25
+  faktor_radius_per_magnitudo: 0.4
   # Curah hujan per slot 3 jam (mm) yang dianggap hujan lebat, selain kategori BMKG
   # "Hujan Lebat"/"Hujan Petir". Asumsi project, bisa disesuaikan.
   ambang_hujan_lebat_mm: 20

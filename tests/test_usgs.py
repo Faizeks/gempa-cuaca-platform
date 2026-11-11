@@ -1,12 +1,12 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from conftest import FIXTURES, FakeResponse, FakeSession
 
 from pipeline.extract import usgs
 
-START = datetime(2026, 10, 1, tzinfo=timezone.utc)
-END = datetime(2026, 11, 1, tzinfo=timezone.utc)
+START = datetime(2026, 10, 1, tzinfo=UTC)
+END = datetime(2026, 11, 1, tzinfo=UTC)
 CSV_TEXT = (FIXTURES / "usgs_events.csv").read_text(encoding="utf-8")
 
 

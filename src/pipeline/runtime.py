@@ -8,7 +8,7 @@ selalu dinormalkan lebih dulu sebelum dibandingkan atau dihitung.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def run_timestamp(context: Mapping) -> datetime:
@@ -26,7 +26,7 @@ def run_timestamp(context: Mapping) -> datetime:
     run_after = getattr(dag_run, "run_after", None) if dag_run is not None else None
     if run_after is not None:
         return to_utc(run_after)
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def data_interval(context: Mapping, fallback_length: timedelta) -> tuple[datetime, datetime]:
@@ -66,13 +66,25 @@ def to_utc(value: datetime) -> datetime:
     """
     if value.tzinfo is None or value.utcoffset() is None:
         aware = datetime(
-            value.year, value.month, value.day, value.hour, value.minute, value.second, value.microsecond,
-            tzinfo=timezone.utc,
+            value.year,
+            value.month,
+            value.day,
+            value.hour,
+            value.minute,
+            value.second,
+            value.microsecond,
+            tzinfo=UTC,
         )
     else:
-        aware = value.astimezone(timezone.utc)
+        aware = value.astimezone(UTC)
         aware = datetime(
-            aware.year, aware.month, aware.day, aware.hour, aware.minute, aware.second, aware.microsecond,
-            tzinfo=timezone.utc,
+            aware.year,
+            aware.month,
+            aware.day,
+            aware.hour,
+            aware.minute,
+            aware.second,
+            aware.microsecond,
+            tzinfo=UTC,
         )
     return aware

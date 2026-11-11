@@ -8,7 +8,7 @@ Test ini membuat schema sementara dan menghapusnya kembali.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -50,8 +50,8 @@ def _write_partitioned(tmp_path, rows):
 
 
 ROWS = [
-    {"sumber": "bmkg", "sumber_event_id": "a", "waktu_utc": datetime(2026, 11, 9, tzinfo=timezone.utc), "magnitudo": 5.1},
-    {"sumber": "usgs", "sumber_event_id": "us1", "waktu_utc": datetime(2026, 11, 8, tzinfo=timezone.utc), "magnitudo": 4.2},
+    {"sumber": "bmkg", "sumber_event_id": "a", "waktu_utc": datetime(2026, 11, 9, tzinfo=UTC), "magnitudo": 5.1},
+    {"sumber": "usgs", "sumber_event_id": "us1", "waktu_utc": datetime(2026, 11, 8, tzinfo=UTC), "magnitudo": 4.2},
 ]
 
 

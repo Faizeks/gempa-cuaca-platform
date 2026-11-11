@@ -10,7 +10,7 @@ from pipeline import config
 
 
 @contextmanager
-def spark_session(app_name: str, master: str | None = None) -> Iterator["SparkSession"]:  # noqa: F821
+def spark_session(app_name: str, master: str | None = None) -> Iterator[SparkSession]:  # noqa: F821
     """SparkSession yang otomatis dihentikan setelah selesai.
 
     - master default dari SPARK_MASTER_URL (cluster di Docker, local[2] di luar Docker)
@@ -40,7 +40,7 @@ def spark_session(app_name: str, master: str | None = None) -> Iterator["SparkSe
         spark.stop()
 
 
-def write_parquet(df: "DataFrame", path: Path, partition_by: list[str] | None = None) -> int:  # noqa: F821
+def write_parquet(df: DataFrame, path: Path, partition_by: list[str] | None = None) -> int:  # noqa: F821
     """Tulis DataFrame ke Parquet (overwrite penuh) dan kembalikan jumlah barisnya.
 
     Data di-cache dulu agar perhitungan jumlah baris dan penulisan tidak

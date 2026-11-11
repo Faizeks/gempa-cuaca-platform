@@ -15,7 +15,7 @@ menghitung paparan risiko aset perusahaan (gudang logistik dan polis asuransi) p
 | 1. Ekstraksi ke bronze | 5 DAG Airflow menarik data mentah ke `data/bronze` | ✅ selesai |
 | 2. Silver | Spark cluster: parsing, deduplikasi, kab/kota terdekat → Parquet → PostgreSQL + data quality check | ✅ selesai |
 | 3. Gold | dbt: star schema, fakta paparan aset, mart risiko, 34 test; dipicu Asset dari silver | ✅ selesai |
-| 4. Dashboard | Metabase | ⏳ berikutnya |
+| 4. Dashboard | Metabase: dashboard 11 kartu dibuat otomatis dari kode | ✅ selesai |
 
 ## Arsitektur saat ini
 
@@ -79,13 +79,18 @@ Star schema dengan aset sintetis sebagai pusat analisis paparan:
 | `dim_aset` | dimensi | 1.000 aset fiktif (gudang & polis), nilai, kelas nilai, lokasi |
 | `fact_gempa` | fakta, incremental | satu baris per gempa per sumber; kategori magnitudo & kedalaman |
 | `fact_prakiraan_cuaca` | fakta, incremental | lokasi × slot 3 jam × analisis; flag hujan lebat & cuaca ekstrem |
-| `fact_paparan_gempa` | fakta | aset × gempa M ≥ 4 dalam radius 100 km (jarak Haversine) |
+| `fact_paparan_gempa` | fakta | aset × gempa M ≥ 5 yang radius dampaknya menjangkau aset (jarak Haversine) |
 | `fact_paparan_cuaca` | fakta | aset × tanggal × analisis: hujan total, slot ekstrem |
 | `mart_risiko_provinsi` | mart | provinsi × bulan: jumlah gempa, gempa dirasakan, hari cuaca ekstrem, per 1 juta penduduk |
 | `mart_paparan_aset` | mart | provinsi × jenis aset × bulan: aset terpapar dan % nilai portofolio terpapar |
 | `mart_peringatan_cuaca_aset` | mart | aset yang diprakirakan terkena cuaca ekstrem mulai hari ini |
 
-Parameter analisis (radius, magnitudo minimum, ambang hujan lebat) ada di `vars` pada
+**Radius dampak gempa bergantung magnitudo:** `25 km × 10^(0,4 × (M − 5))`, yaitu M5 = 25 km,
+M6 = 63 km, M7 = 158 km. Radius tetap (mis. 100 km untuk semua gempa M4+) membuat hampir seluruh
+portofolio di Indonesia tampak terpapar setiap tahun, sehingga tidak membedakan risiko. Ini
+penyederhanaan atenuasi guncangan untuk project, bukan model rekayasa gempa.
+
+Parameter analisis (radius dampak, magnitudo minimum, ambang hujan lebat) ada di `vars` pada
 `dbt/dbt_project.yml`. Test dbt mencakup `unique`, `not_null`, `relationships`,
 `accepted_values`, test generik kombinasi kunci unik, dan dua test bisnis (paparan harus di
 dalam radius; persentase 0–100).
@@ -132,14 +137,46 @@ Perintah lain:
 ```powershell
 docker compose logs -f airflow-scheduler   # lihat log
 docker compose down                        # hentikan (data tetap ada)
-docker compose --profile bi up -d          # tambah Metabase (http://localhost:3000)
 ```
+
+## Dashboard (Metabase)
+
+```powershell
+docker compose --profile bi up -d
+docker compose logs -f metabase-setup      # tunggu baris "Dashboard siap: ..." (start pertama ±3-5 menit)
+```
+
+Buka http://localhost:3000 dan login dengan `MB_ADMIN_EMAIL` / `MB_ADMIN_PASSWORD` dari `.env`
+(default `admin@example.com` / `Bencana2026!`). Dashboard ada di koleksi **Risiko Bencana**.
+
+Semua isi Metabase dibuat dari kode oleh `scripts/setup_metabase.py` lewat Metabase API:
+akun admin, koneksi ke database warehouse (hanya schema `gold`), 11 pertanyaan SQL, dan
+tata letak dashboard. Query-nya ada di `metabase/sql/` sehingga bisa ditinjau dan diuji tanpa
+Metabase. Skrip ini idempotent; setelah mengubah query, jalankan ulang:
+
+```powershell
+docker compose --profile bi run --rm metabase-setup
+```
+
+Isi dashboard:
+
+| Bagian | Kartu |
+| --- | --- |
+| Angka utama | nilai portofolio, aset terpapar gempa, % nilai terpapar, jumlah gempa M5+ (12 bulan) |
+| Peta dan peringkat | peta episentrum gempa M5+, 10 provinsi dengan % nilai aset terpapar tertinggi |
+| Tren | gempa per bulan (USGS), nilai aset terpapar per bulan per jenis aset |
+| Operasional | daftar aset yang diprakirakan terkena hujan lebat/petir mulai hari ini |
+| Ringkasan | risiko per provinsi, peta aset terpapar |
+
+Metabase butuh ±1-1,5 GB memori. Jika laptop berat, hentikan setelah selesai dengan
+`docker compose stop metabase`.
 
 ## Test
 
 ```powershell
 python -m pip install -r requirements-dev.txt
 python -m pytest                           # unit test ringan (tanpa Docker)
+ruff check . ; ruff format --check .      # lint dan format kode
 docker compose exec airflow-scheduler python -m pytest /opt/airflow/tests   # semua test, termasuk Spark & PostgreSQL
 ```
 
@@ -160,7 +197,8 @@ src/pipeline/         logika ekstraksi, penyimpanan, helper waktu
   quality.py          data quality check layer silver
   dbt.py              menjalankan dbt dari task Airflow
   assets.py           Asset Airflow penghubung silver → gold
-scripts/              generate_assets.py
+scripts/              generate_assets.py, setup_metabase.py
+metabase/sql/         query SQL setiap kartu dashboard
 dbt/                  project dbt (layer gold)
   models/staging/     view pembersih di atas tabel silver dan seed
   models/marts/       dimensi, fakta, dan mart

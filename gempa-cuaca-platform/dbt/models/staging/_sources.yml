@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: silver
+    description: >
+      Layer silver hasil Spark (DAG `silver`): data bersih, bertipe benar, tanpa duplikat.
+      Diisi ulang penuh setiap jam dan sudah melewati data quality check.
+    schema: silver
+    tables:
+      - name: kabkota
+        description: 514 kabupaten/kota dengan centroid, luas, dan jumlah penduduk.
+      - name: gempa
+        description: Gempa dari feed BMKG dan katalog USGS; kolom `sumber` membedakan asal data.
+      - name: prakiraan_cuaca
+        description: Prakiraan cuaca BMKG per lokasi x slot 3 jam x waktu analisis.

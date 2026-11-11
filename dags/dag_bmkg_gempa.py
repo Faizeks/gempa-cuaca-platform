@@ -15,7 +15,7 @@ Sumber: Data Terbuka BMKG (wajib dicantumkan).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pendulum
 from airflow.sdk import dag, get_current_context, task
@@ -52,12 +52,19 @@ def bmkg_gempa_dag():
             path,
             {
                 "source_url": bmkg_gempa.feed_url(feed),
-                "extracted_at": datetime.now(timezone.utc).isoformat(),
+                "extracted_at": datetime.now(UTC).isoformat(),
                 "payload": payload,
             },
         )
         latest = events[0]
-        log.info("%s: %d kejadian, terbaru %s M%s -> %s", feed, len(events), latest["DateTime"], latest["Magnitude"], path)
+        log.info(
+            "%s: %d kejadian, terbaru %s M%s -> %s",
+            feed,
+            len(events),
+            latest["DateTime"],
+            latest["Magnitude"],
+            path,
+        )
         return {"feed": feed, "events": len(events), "path": str(path)}
 
     extract_feed.expand(feed=list(config.BMKG_GEMPA_FEEDS))
