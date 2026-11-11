@@ -2,3 +2,4 @@
 # kalau tidak, container PostgreSQL gagal menjalankan script init.
 *.sh text eol=lf
 *.sql text eol=lf
+* text=auto eol=lf
